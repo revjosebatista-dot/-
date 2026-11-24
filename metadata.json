@@ -1,0 +1,6 @@
+{
+  "name": "LIVRO IA",
+  "description": "Editor inteligente de livros que transforma gravações de áudio, aulas, palestras e entrevistas em livros completos, organizados editorialmente e prontos para revisão e publicação.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

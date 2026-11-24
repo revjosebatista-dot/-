@@ -1,0 +1,281 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Hardened Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function bookExists(userId, bookId) {
+      return exists(/databases/$(database)/documents/users/$(userId)/books/$(bookId));
+    }
+
+    // --- Validation Helpers ---
+    function isValidBookProject(data, userId) {
+      return data.userId == userId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.subject is string && data.subject.size() <= 1000 &&
+        data.currentStep is int && data.currentStep >= 1 && data.currentStep <= 12 &&
+        data.structureApproved is bool &&
+        data.targetLanguage is string && data.targetLanguage in ['pt-BR', 'original'] &&
+        (!('subtitle' in data) || (data.subtitle is string && data.subtitle.size() <= 300)) &&
+        (!('authorName' in data) || (data.authorName is string && data.authorName.size() <= 120)) &&
+        (!('presentation' in data) || (data.presentation is string && data.presentation.size() <= 20000)) &&
+        (!('dedication' in data) || (data.dedication is string && data.dedication.size() <= 5000)) &&
+        (!('acknowledgments' in data) || (data.acknowledgments is string && data.acknowledgments.size() <= 10000)) &&
+        (!('preface' in data) || (data.preface is string && data.preface.size() <= 20000)) &&
+        (!('introduction' in data) || (data.introduction is string && data.introduction.size() <= 30000)) &&
+        (!('conclusion' in data) || (data.conclusion is string && data.conclusion.size() <= 30000)) &&
+        (!('finalRemarks' in data) || (data.finalRemarks is string && data.finalRemarks.size() <= 20000)) &&
+        (!('bibliography' in data) || (data.bibliography is string && data.bibliography.size() <= 20000)) &&
+        (!('aiGeneratedOutlineNotes' in data) || (data.aiGeneratedOutlineNotes is string && data.aiGeneratedOutlineNotes.size() <= 10000)) &&
+        (!('layoutPageSize' in data) || (data.layoutPageSize is string && data.layoutPageSize in ['A5', '16x23', 'CUSTOM'])) &&
+        (!('layoutCustomWidthCm' in data) || (data.layoutCustomWidthCm is number && data.layoutCustomWidthCm >= 10 && data.layoutCustomWidthCm <= 30)) &&
+        (!('layoutCustomHeightCm' in data) || (data.layoutCustomHeightCm is number && data.layoutCustomHeightCm >= 14 && data.layoutCustomHeightCm <= 40)) &&
+        (!('layoutMarginInnerMm' in data) || (data.layoutMarginInnerMm is int && data.layoutMarginInnerMm >= 5 && data.layoutMarginInnerMm <= 50)) &&
+        (!('layoutMarginOuterMm' in data) || (data.layoutMarginOuterMm is int && data.layoutMarginOuterMm >= 5 && data.layoutMarginOuterMm <= 50)) &&
+        (!('layoutFontFamily' in data) || (data.layoutFontFamily is string && data.layoutFontFamily in ['MERRIWEATHER', 'PLAYFAIR_DISPLAY', 'PLUS_JAKARTA_SANS'])) &&
+        (!('layoutFontSizePt' in data) || (data.layoutFontSizePt is int && data.layoutFontSizePt >= 8 && data.layoutFontSizePt <= 18)) &&
+        (!('layoutLineSpacing' in data) || (data.layoutLineSpacing is number && data.layoutLineSpacing >= 1.0 && data.layoutLineSpacing <= 2.5)) &&
+        (!('layoutParagraphIndentMm' in data) || (data.layoutParagraphIndentMm is int && data.layoutParagraphIndentMm >= 0 && data.layoutParagraphIndentMm <= 20)) &&
+        (!('layoutJustified' in data) || data.layoutJustified is bool) &&
+        (!('layoutShowHeaders' in data) || data.layoutShowHeaders is bool) &&
+        (!('layoutShowPageNumbers' in data) || data.layoutShowPageNumbers is bool);
+    }
+
+    function isValidAudioRecording(data, userId, bookId) {
+      return data.userId == userId &&
+        data.bookId == bookId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 255 &&
+        data.mimeType is string && data.mimeType.size() >= 1 && data.mimeType.size() <= 100 &&
+        data.sizeBytes is int && data.sizeBytes >= 0 &&
+        data.orderIndex is int && data.orderIndex >= 0 && data.orderIndex <= 500 &&
+        data.status is string && data.status in ['PENDING', 'PROCESSING', 'COMPLETED', 'ERROR'] &&
+        data.translateToPtBr is bool &&
+        data.chunksCompleted is int && data.chunksCompleted >= 0 &&
+        data.totalChunks is int && data.totalChunks >= 1 &&
+        (!('durationMs' in data) || (data.durationMs is int && data.durationMs >= 0)) &&
+        (!('localFilePath' in data) || (data.localFilePath is string && data.localFilePath.size() <= 500)) &&
+        (!('detectedLanguage' in data) || (data.detectedLanguage is string && data.detectedLanguage.size() <= 64)) &&
+        (!('verbatimTranscript' in data) || (data.verbatimTranscript is string && data.verbatimTranscript.size() <= 300000)) &&
+        (!('editorialTranscript' in data) || (data.editorialTranscript is string && data.editorialTranscript.size() <= 300000)) &&
+        (!('contentSummary' in data) || (data.contentSummary is string && data.contentSummary.size() <= 5000)) &&
+        (!('keyTopics' in data) || (data.keyTopics is list && data.keyTopics.size() <= 25 && (data.keyTopics.size() == 0 || data.keyTopics[0] is string))) &&
+        (!('errorMessage' in data) || (data.errorMessage is string && data.errorMessage.size() <= 1000));
+    }
+
+    function isValidBookChapter(data, userId, bookId) {
+      return data.userId == userId &&
+        data.bookId == bookId &&
+        data.chapterNumber is int && data.chapterNumber >= 1 && data.chapterNumber <= 500 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 250 &&
+        data.content is string && data.content.size() <= 300000 &&
+        data.orderIndex is int && data.orderIndex >= 0 && data.orderIndex <= 500 &&
+        data.approved is bool &&
+        (!('partTitle' in data) || (data.partTitle is string && data.partTitle.size() <= 200)) &&
+        (!('subtitle' in data) || (data.subtitle is string && data.subtitle.size() <= 300)) &&
+        (!('summary' in data) || (data.summary is string && data.summary.size() <= 5000)) &&
+        (!('needsReviewCount' in data) || (data.needsReviewCount is int && data.needsReviewCount >= 0));
+    }
+
+    function isValidBookVersion(data, userId, bookId) {
+      return data.userId == userId &&
+        data.bookId == bookId &&
+        data.label is string && data.label.size() >= 1 && data.label.size() <= 150 &&
+        data.chapterCount is int && data.chapterCount >= 0 && data.chapterCount <= 200 &&
+        data.wordCount is int && data.wordCount >= 0 &&
+        data.chaptersSnapshot is list && data.chaptersSnapshot.size() <= 100 &&
+        (!('note' in data) || (data.note is string && data.note.size() <= 1000)) &&
+        (!('bookTitleSnapshot' in data) || (data.bookTitleSnapshot is string && data.bookTitleSnapshot.size() <= 200)) &&
+        (!('bookSubtitleSnapshot' in data) || (data.bookSubtitleSnapshot is string && data.bookSubtitleSnapshot.size() <= 300));
+    }
+
+    function isValidQcReport(data, userId, bookId) {
+      return data.userId == userId &&
+        data.bookId == bookId &&
+        data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 5000 &&
+        data.readyWithCaveats is bool &&
+        data.issueCount is int && data.issueCount >= 0 &&
+        data.issues is list && data.issues.size() <= 100;
+    }
+
+    // --- Collection Rules ---
+    match /users/{userId}/books/{bookId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(bookId);
+
+      allow create: if isOwner(userId) &&
+        isValidId(bookId) &&
+        incoming().keys().hasAll(['userId', 'title', 'subject', 'currentStep', 'structureApproved', 'targetLanguage', 'createdAt', 'updatedAt']) &&
+        incoming().keys().hasOnly([
+          'userId', 'title', 'subtitle', 'authorName', 'subject', 'currentStep', 'structureApproved', 'targetLanguage',
+          'presentation', 'dedication', 'acknowledgments', 'preface', 'introduction', 'conclusion', 'finalRemarks', 'bibliography', 'aiGeneratedOutlineNotes',
+          'layoutPageSize', 'layoutCustomWidthCm', 'layoutCustomHeightCm', 'layoutMarginInnerMm', 'layoutMarginOuterMm',
+          'layoutFontFamily', 'layoutFontSizePt', 'layoutLineSpacing', 'layoutParagraphIndentMm', 'layoutJustified', 'layoutShowHeaders', 'layoutShowPageNumbers',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidTimestamp(incoming().createdAt) &&
+        isValidTimestamp(incoming().updatedAt) &&
+        isValidBookProject(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+        isValidId(bookId) &&
+        isValidBookProject(incoming(), userId) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        isValidTimestamp(incoming().updatedAt) &&
+        (
+          // Action 1: Update metadata, editorial sections, or workflow state
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'subtitle', 'authorName', 'subject', 'currentStep', 'structureApproved', 'targetLanguage',
+            'presentation', 'dedication', 'acknowledgments', 'preface', 'introduction', 'conclusion', 'finalRemarks', 'bibliography', 'aiGeneratedOutlineNotes',
+            'updatedAt'
+          ]) ||
+          // Action 2: Update layout & typography formatting configuration
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'layoutPageSize', 'layoutCustomWidthCm', 'layoutCustomHeightCm', 'layoutMarginInnerMm', 'layoutMarginOuterMm',
+            'layoutFontFamily', 'layoutFontSizePt', 'layoutLineSpacing', 'layoutParagraphIndentMm', 'layoutJustified', 'layoutShowHeaders', 'layoutShowPageNumbers',
+            'currentStep', 'updatedAt'
+          ])
+        );
+
+      allow delete: if isOwner(userId) && isValidId(bookId);
+
+      match /recordings/{recordingId} {
+        allow list: if isOwner(userId) && isValidId(bookId);
+        allow get: if isOwner(userId) && isValidId(bookId) && isValidId(recordingId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(bookId) &&
+          isValidId(recordingId) &&
+          incoming().keys().hasAll(['userId', 'bookId', 'title', 'fileName', 'mimeType', 'sizeBytes', 'orderIndex', 'status', 'translateToPtBr', 'chunksCompleted', 'totalChunks', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly([
+            'userId', 'bookId', 'title', 'fileName', 'mimeType', 'sizeBytes', 'durationMs', 'orderIndex',
+            'localFilePath', 'detectedLanguage', 'translateToPtBr', 'verbatimTranscript', 'editorialTranscript',
+            'contentSummary', 'keyTopics', 'status', 'errorMessage', 'chunksCompleted', 'totalChunks', 'createdAt', 'updatedAt'
+          ]) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidTimestamp(incoming().updatedAt) &&
+          isValidAudioRecording(incoming(), userId, bookId) &&
+          bookExists(userId, bookId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(bookId) &&
+          isValidId(recordingId) &&
+          isValidAudioRecording(incoming(), userId, bookId) &&
+          incoming().userId == existing().userId &&
+          incoming().bookId == existing().bookId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidTimestamp(incoming().updatedAt) &&
+          (
+            // Action 1: Reorder or rename recording / toggle translation
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'orderIndex', 'translateToPtBr', 'updatedAt']) ||
+            // Action 2: Update transcription progress, transcripts, or error recovery state
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'status', 'errorMessage', 'chunksCompleted', 'totalChunks', 'detectedLanguage',
+              'verbatimTranscript', 'editorialTranscript', 'contentSummary', 'keyTopics', 'durationMs', 'updatedAt'
+            ])
+          );
+
+        allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(recordingId);
+      }
+
+      match /chapters/{chapterId} {
+        allow list: if isOwner(userId) && isValidId(bookId);
+        allow get: if isOwner(userId) && isValidId(bookId) && isValidId(chapterId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(bookId) &&
+          isValidId(chapterId) &&
+          incoming().keys().hasAll(['userId', 'bookId', 'chapterNumber', 'title', 'content', 'orderIndex', 'approved', 'createdAt', 'updatedAt']) &&
+          incoming().keys().hasOnly([
+            'userId', 'bookId', 'partTitle', 'chapterNumber', 'title', 'subtitle', 'content', 'summary', 'orderIndex', 'approved', 'needsReviewCount', 'createdAt', 'updatedAt'
+          ]) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidTimestamp(incoming().updatedAt) &&
+          isValidBookChapter(incoming(), userId, bookId) &&
+          bookExists(userId, bookId);
+
+        allow update: if isOwner(userId) &&
+          isValidId(bookId) &&
+          isValidId(chapterId) &&
+          isValidBookChapter(incoming(), userId, bookId) &&
+          incoming().userId == existing().userId &&
+          incoming().bookId == existing().bookId &&
+          incoming().createdAt == existing().createdAt &&
+          isValidTimestamp(incoming().updatedAt) &&
+          (
+            // Action 1: Edit chapter prose, titles, or approval
+            incoming().diff(existing()).affectedKeys().hasOnly(['partTitle', 'chapterNumber', 'title', 'subtitle', 'content', 'summary', 'orderIndex', 'approved', 'needsReviewCount', 'updatedAt'])
+          );
+
+        allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(chapterId);
+      }
+
+      match /versions/{versionId} {
+        allow list: if isOwner(userId) && isValidId(bookId);
+        allow get: if isOwner(userId) && isValidId(bookId) && isValidId(versionId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(bookId) &&
+          isValidId(versionId) &&
+          incoming().keys().hasAll(['userId', 'bookId', 'label', 'chapterCount', 'wordCount', 'chaptersSnapshot', 'createdAt']) &&
+          incoming().keys().hasOnly([
+            'userId', 'bookId', 'label', 'note', 'bookTitleSnapshot', 'bookSubtitleSnapshot', 'chapterCount', 'wordCount', 'chaptersSnapshot', 'createdAt'
+          ]) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidBookVersion(incoming(), userId, bookId) &&
+          bookExists(userId, bookId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(versionId);
+      }
+
+      match /qcReports/{reportId} {
+        allow list: if isOwner(userId) && isValidId(bookId);
+        allow get: if isOwner(userId) && isValidId(bookId) && isValidId(reportId);
+
+        allow create: if isOwner(userId) &&
+          isValidId(bookId) &&
+          isValidId(reportId) &&
+          incoming().keys().hasAll(['userId', 'bookId', 'summary', 'readyWithCaveats', 'issueCount', 'issues', 'createdAt']) &&
+          incoming().keys().hasOnly([
+            'userId', 'bookId', 'summary', 'readyWithCaveats', 'issueCount', 'issues', 'createdAt'
+          ]) &&
+          isValidTimestamp(incoming().createdAt) &&
+          isValidQcReport(incoming(), userId, bookId) &&
+          bookExists(userId, bookId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(reportId);
+      }
+    }
+  }
+}

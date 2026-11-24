@@ -1,0 +1,148 @@
+{
+  "entities": {
+    "BookProject": {
+      "title": "BookProject",
+      "description": "An editorial book project created from audio recordings and organized with Gemini AI.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "title": { "type": "string", "description": "Book title." },
+        "subtitle": { "type": "string", "description": "Book subtitle." },
+        "authorName": { "type": "string", "description": "Author name." },
+        "subject": { "type": "string", "description": "Book topic or subject." },
+        "currentStep": { "type": "integer", "description": "Current workflow step 1..12." },
+        "structureApproved": { "type": "boolean", "description": "Whether the proposed book structure was approved by the user." },
+        "targetLanguage": { "type": "string", "enum": ["pt-BR", "original"], "description": "Target book language." },
+        "presentation": { "type": "string", "description": "Apresentacao da obra." },
+        "dedication": { "type": "string", "description": "Dedicatoria." },
+        "acknowledgments": { "type": "string", "description": "Agradecimentos." },
+        "preface": { "type": "string", "description": "Prefacio." },
+        "introduction": { "type": "string", "description": "Introducao." },
+        "conclusion": { "type": "string", "description": "Conclusao." },
+        "finalRemarks": { "type": "string", "description": "Consideracoes finais." },
+        "bibliography": { "type": "string", "description": "Referencias bibliograficas." },
+        "aiGeneratedOutlineNotes": { "type": "string", "description": "Notes on which sections were AI-suggested vs author-written." },
+        "layoutPageSize": { "type": "string", "enum": ["A5", "16x23", "CUSTOM"] },
+        "layoutCustomWidthCm": { "type": "number" },
+        "layoutCustomHeightCm": { "type": "number" },
+        "layoutMarginInnerMm": { "type": "integer" },
+        "layoutMarginOuterMm": { "type": "integer" },
+        "layoutFontFamily": { "type": "string", "enum": ["MERRIWEATHER", "PLAYFAIR_DISPLAY", "PLUS_JAKARTA_SANS"] },
+        "layoutFontSizePt": { "type": "integer" },
+        "layoutLineSpacing": { "type": "number" },
+        "layoutParagraphIndentMm": { "type": "integer" },
+        "layoutJustified": { "type": "boolean" },
+        "layoutShowHeaders": { "type": "boolean" },
+        "layoutShowPageNumbers": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp." }
+      },
+      "required": ["userId", "title", "subject", "currentStep", "structureApproved", "targetLanguage", "createdAt", "updatedAt"]
+    },
+    "AudioRecording": {
+      "title": "AudioRecording",
+      "description": "An uploaded or recorded audio segment attached to a book project.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "title": { "type": "string" },
+        "fileName": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "sizeBytes": { "type": "integer" },
+        "durationMs": { "type": "integer" },
+        "orderIndex": { "type": "integer" },
+        "localFilePath": { "type": "string" },
+        "detectedLanguage": { "type": "string" },
+        "translateToPtBr": { "type": "boolean" },
+        "verbatimTranscript": { "type": "string" },
+        "editorialTranscript": { "type": "string" },
+        "contentSummary": { "type": "string" },
+        "keyTopics": { "type": "array" },
+        "status": { "type": "string", "enum": ["PENDING", "PROCESSING", "COMPLETED", "ERROR"] },
+        "errorMessage": { "type": "string" },
+        "chunksCompleted": { "type": "integer" },
+        "totalChunks": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "title", "fileName", "mimeType", "sizeBytes", "orderIndex", "status", "translateToPtBr", "chunksCompleted", "totalChunks", "createdAt", "updatedAt"]
+    },
+    "BookChapter": {
+      "title": "BookChapter",
+      "description": "An editorial chapter belonging to a book project.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "partTitle": { "type": "string" },
+        "chapterNumber": { "type": "integer" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "content": { "type": "string" },
+        "summary": { "type": "string" },
+        "orderIndex": { "type": "integer" },
+        "approved": { "type": "boolean" },
+        "needsReviewCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "chapterNumber", "title", "content", "orderIndex", "approved", "createdAt", "updatedAt"]
+    },
+    "BookVersion": {
+      "title": "BookVersion",
+      "description": "Saved manuscript version snapshot for rollback.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "label": { "type": "string" },
+        "note": { "type": "string" },
+        "bookTitleSnapshot": { "type": "string" },
+        "bookSubtitleSnapshot": { "type": "string" },
+        "chapterCount": { "type": "integer" },
+        "wordCount": { "type": "integer" },
+        "chaptersSnapshot": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "label", "chapterCount", "wordCount", "chaptersSnapshot", "createdAt"]
+    },
+    "QcReport": {
+      "title": "QcReport",
+      "description": "Quality control review report identifying issues to verify before publishing.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "summary": { "type": "string" },
+        "readyWithCaveats": { "type": "boolean" },
+        "issueCount": { "type": "integer" },
+        "issues": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "summary", "readyWithCaveats", "issueCount", "issues", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/books/{bookId}": {
+      "schema": { "$ref": "#/entities/BookProject" },
+      "description": "User-owned book manuscripts and editorial settings."
+    },
+    "/users/{userId}/books/{bookId}/recordings/{recordingId}": {
+      "schema": { "$ref": "#/entities/AudioRecording" },
+      "description": "Audio recordings and transcripts associated with a book."
+    },
+    "/users/{userId}/books/{bookId}/chapters/{chapterId}": {
+      "schema": { "$ref": "#/entities/BookChapter" },
+      "description": "Ordered chapters of a book manuscript."
+    },
+    "/users/{userId}/books/{bookId}/versions/{versionId}": {
+      "schema": { "$ref": "#/entities/BookVersion" },
+      "description": "Version snapshots of a book manuscript."
+    },
+    "/users/{userId}/books/{bookId}/qcReports/{reportId}": {
+      "schema": { "$ref": "#/entities/QcReport" },
+      "description": "Editorial quality control reports for a book."
+    }
+  }
+}
